@@ -1,40 +1,56 @@
 from bs4 import BeautifulSoup
 import requests
+import json
 
-DOMAIN = "https://ko.wiktionary.org"
-URL = DOMAIN + "/wiki/%EB%B6%84%EB%A5%98:%ED%95%9C%EA%B5%AD%EC%96%B4_%EB%AA%85%EC%82%AC"
-html = requests.get(URL).text
-soup = BeautifulSoup(html, 'html.parser')
+TARGET_DOMAIN = "https://ko.wiktionary.org"
+API_URL = "http://localhost:2394/api/noun"
 
+def startCrawling():
+    URL = TARGET_DOMAIN + "/wiki/%EB%B6%84%EB%A5%98:%ED%95%9C%EA%B5%AD%EC%96%B4_%EB%AA%85%EC%82%AC"
 
-category = soup.find_all("a", class_="external text")
-
-# print(speic[0])
-# print(speic[5])
-
-word_section = soup.find("div", id="mw-pages")
-word_group = word_section.find("div", class_="mw-category-group")
-wordList = word_group.find_all("a")
-
-# print(wordList[0])
-# print(wordList[0].get('href'))
+    loadCrawlingPage(URL)
 
 
-DETAIL_URL = DOMAIN + wordList[79].get('href')
-print(DETAIL_URL)
+def loadCrawlingPage(url):
+    
+    print("loadCrawlingPage:" + url)
 
-detailHtml = requests.get(DETAIL_URL).text
-detailSoup = BeautifulSoup(detailHtml, 'html.parser')
-
-detail_section = detailSoup.find("div", class_="mw-parser-output")
-
-detail_group = detail_section.find_all("ul")
-print(detail_group)
+    html = requests.get(url).text
+    soup = BeautifulSoup(html, 'html.parser')
 
 
-# if(detail_group.length > 0):
-#     print(detail_group[0])
-# else:
-#     print('No Details')
+    category = soup.find_all("a", class_="external text")
+
+    word_section = soup.find("div", id="mw-pages")
+    word_group = word_section.find("div", class_="mw-category-group")
+    wordList = word_group.find_all("a")
+
+    for word in wordList: 
+        addWord(word.text, word.get('href'))
+
+    next_page_section = soup.find("div", id="mw-pages")
+    next_page_group = next_page_section.find_all("a")
+
+    for temp in next_page_group: 
+        if(temp.text == '다음 페이지'):
+            loadCrawlingPage(TARGET_DOMAIN+temp.get('href'))
+            break
 
 
+
+def addWord(word, url):
+    params = {
+        'word': word,
+        'source_url': TARGET_DOMAIN+url
+    }
+
+    result = requests.post(API_URL, params)
+
+    if(result.status_code == 200):
+        print("Add Complete: " + word)
+    else:
+        print("Add Fail: " + word)
+    
+
+
+startCrawling()
